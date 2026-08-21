@@ -1,0 +1,14 @@
+aiogram
+aiohttp
+gspread
+google-auth
+python-dotenv
+openai
+apscheduler
+python-telegram-bot[job-queue]
+gspread
+google-api-python-client
+google-auth
+groq
+pytz
+aiogram-calendar
