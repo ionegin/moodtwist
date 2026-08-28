@@ -78,3 +78,7 @@ BOT_TOKEN = _get_setting("TELEGRAM_TOKEN")
 GROQ_API_KEY = _get_setting("GROQ_KEY")
 WEBHOOK_BASE_URL = os.getenv("RENDER_EXTERNAL_URL") or os.getenv("WEBHOOK_URL") or os.getenv("SPACE_HOST", "")
 GOOGLE_SHEET_ID = _get_setting("GOOGLE_SHEET_ID", "1a6fCFKO2y6r04Z2U8N495nzN1S9-SEas_21ldnqFBcY")
+
+# Время жизни in-memory кэша схемы опросов (секунды).
+# Сам опрос читается из PASTE_SURVEY_HERE.json (inline JSON или ссылка "url").
+SURVEY_CACHE_TTL = int(_get_setting("SURVEY_CACHE_TTL", "86400"))  # секунды

@@ -20,7 +20,7 @@ __pycache__/
 !menu.py
 !menu_config.py
 !messages.py
-!metrics.py
+!PASTE_SURVEY_HERE.json
 !services/
 !services/**/*.py
 !storage/

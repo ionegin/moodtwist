@@ -214,3 +214,4 @@ secret_credentials.json
 voice_*.ogg
 temp/
 logs/
+data/

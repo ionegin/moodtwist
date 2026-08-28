@@ -1,7 +1,7 @@
 import gspread
 from config import CREDENTIALS_FILE, GOOGLE_SHEET_ID
 from datetime import datetime
-from metrics import is_metric_summable, get_measurement_config
+import survey_provider
 
 class GoogleSheetsStorage:
     def __init__(self):
@@ -34,23 +34,17 @@ class GoogleSheetsStorage:
             if not matching_values:
                 return None
 
-            if is_metric_summable(metric_key):
-                total = 0.0
-                for v in matching_values:
-                    try:
-                        total += float(v.replace(',', '.'))
-                    except ValueError:
-                        continue
-                return total if total > 0 else None
-
-            return matching_values[-1]
+            agg = survey_provider.aggregate(metric_key, matching_values)
+            if isinstance(agg, (int, float)):
+                return agg if agg > 0 else None
+            return agg
 
         except Exception as e:
             print(f"[SHEETS] Error in check_today_metric: {e}")
             return None
 
     def get_day_data(self, user_id, logical_date):
-        """Возвращает все метрики за день одним запросом, суммируя числовые."""
+        """Возвращает все метрики за день одним запросом, агрегируя по типу метрики."""
         try:
             worksheet = self.sh.get_worksheet(0)
             all_values = worksheet.get_all_values()
@@ -77,20 +71,17 @@ class GoogleSheetsStorage:
 
             result = {}
             for key, values in raw.items():
-                if is_metric_summable(key):
-                    total = 0.0
-                    for v in values:
-                        try:
-                            total += float(v.replace(',', '.'))
-                        except ValueError:
-                            continue
-                    if total > 0:
-                        result[key] = str(total)
-                elif get_measurement_config(key).get("format") == "yes_no":
-                    # Для yes_no логика: берем самое первое значение за день
-                    result[key] = values[0]
+                if key in ("Date", "created_at", "ai_score"):
+                    continue
+                agg = survey_provider.aggregate(key, values)
+                if agg is None:
+                    continue
+                if isinstance(agg, (int, float)):
+                    if agg <= 0:
+                        continue
+                    result[key] = str(agg)
                 else:
-                    result[key] = values[-1]
+                    result[key] = agg
 
             return result
 
@@ -119,7 +110,7 @@ class GoogleSheetsStorage:
                     continue
                 if row[date_idx].strip() == logical_date:
                     worksheet.update_cell(row_num, metric_idx + 1, value)
-                    print(f"[SHEETS] updated {metric_key}={value} at row {row_num}")
+                    print(f"[SHEETS] updated cell at row {row_num}")
                     return True
 
             print(f"[SHEETS] update_first_row_yesno: no row found for date={logical_date}. Creating new row.")
@@ -145,19 +136,19 @@ class GoogleSheetsStorage:
 
             new_keys = [k for k in data if k not in headers]
             if new_keys:
-                print(f"[SHEETS] adding new columns: {new_keys}")
+                print(f"[SHEETS] adding {len(new_keys)} new columns")
                 for key in new_keys:
                     headers.append(key)
                     worksheet.update_cell(1, len(headers), key)
 
-            print(f"[SHEETS] headers={headers}")
+            print(f"[SHEETS] headers count={len(headers)}")
 
             row_to_append = [
                 "" if data.get(h) is None else str(data.get(h, ""))
                 for h in headers
             ]
 
-            print(f"[SHEETS] row_to_append={row_to_append}")
+            print(f"[SHEETS] appending row of {len(row_to_append)} cells")
             worksheet.append_row(row_to_append, value_input_option='USER_ENTERED')
             print(f"[SHEETS] append_row OK")
 
@@ -205,7 +196,7 @@ class GoogleSheetsStorage:
                 
             new_keys = [k for k in data if k not in headers]
             if new_keys:
-                print(f"[SHEETS] adding new columns to Notes: {new_keys}")
+                print(f"[SHEETS] adding {len(new_keys)} new columns to Notes")
                 for key in new_keys:
                     headers.append(key)
                     worksheet.update_cell(1, len(headers), key)
