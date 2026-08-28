@@ -63,28 +63,34 @@ async def load_schema():
         return _schema
 
     fetched = None
-    try:
-        source = _read_source_file()
-        if source is None:
-            logging.error("[SURVEY] %s missing or invalid", SOURCE_PATH.name)
-        url = (source or {}).get("url") or ""
-        if url.strip():
+    source = _read_source_file()
+    if source is None:
+        logging.error("[SURVEY] %s missing or invalid", SOURCE_PATH.name)
+
+    url = (source or {}).get("url") or ""
+    inline = (source or {}).get("inline")
+
+    if url.strip():
+        try:
             text = await _fetch_url(url.strip())
             parsed = json.loads(text)
-            if _validate_schema(parsed):
-                fetched = parsed
-                logging.info("[SURVEY] schema fetched from url (%d metrics)", len(parsed.get("metrics", {})))
-            else:
-                logging.error("[SURVEY] fetched schema failed validation")
+        except Exception as e:
+            parsed = None
+            logging.error("[SURVEY] url fetch/parse failed: %s", e)
+        if parsed is not None and _validate_schema(parsed):
+            fetched = parsed
+            logging.info("[SURVEY] schema fetched from url (%d metrics)", len(parsed.get("metrics", {})))
         else:
-            inline = (source or {}).get("inline")
+            logging.error("[SURVEY] fetched schema failed validation; trying inline fallback")
             if _validate_schema(inline):
                 fetched = inline
-                logging.info("[SURVEY] using inline schema from %s", SOURCE_PATH.name)
-            else:
-                logging.error("[SURVEY] inline schema invalid")
-    except Exception as e:
-        logging.error("[SURVEY] load failed: %s", e)
+                logging.warning("[SURVEY] using inline fallback from %s", SOURCE_PATH.name)
+    else:
+        if _validate_schema(inline):
+            fetched = inline
+            logging.info("[SURVEY] using inline schema from %s", SOURCE_PATH.name)
+        else:
+            logging.error("[SURVEY] inline schema invalid")
 
     if fetched is not None:
         _schema = fetched
@@ -112,7 +118,20 @@ def _read_source_file():
     """Читает PASTE_SURVEY_HERE.json, возвращает dict или None."""
     try:
         if SOURCE_PATH.exists():
-            return json.loads(SOURCE_PATH.read_text(encoding="utf-8"))
+            text = SOURCE_PATH.read_text(encoding="utf-8")
+            try:
+                return json.loads(text)
+            except Exception as e:
+                # Файл сломан при ручном редактировании — всё равно вытаскиваем url,
+                # чтобы бот мог скачать схему с Google Drive.
+                import re
+                m = re.search(r'"url"\s*:\s*"([^"]+)"', text)
+                if m:
+                    logging.warning(
+                        "[SURVEY] %s invalid JSON, recovered url from it", SOURCE_PATH.name
+                    )
+                    return {"url": m.group(1)}
+                raise
     except Exception as e:
         logging.error("[SURVEY] source file read failed: %s", e)
     return None
