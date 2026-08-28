@@ -1,3 +1,113 @@
 {
   "//": "ОПРОС — ЕДИНСТВЕННЫЙ ИСТОЧНИК ПРАВДЫ. Если 'url' заполнен — бот тянет опрос по публичной ссылке; иначе используется 'inline'. Меняй прямо здесь (или через кнопку бота «🔗 Указать ссылку на вопросы») и перезапусти бота.",
   "url": "https://drive.google.com/file/d/1IvPtmqJRU6RqeLgRqbglRvrICojHMY7J/view",
+  "inline": {
+    "schema_version": 1,
+    "surveys": {
+      "daily": {
+        "metrics": [
+          "sleep_time",
+          "wake_time",
+          "sleep_hours",
+          "productivity_hours",
+          "meditate_minutes",
+          "energy",
+          "anxiety",
+          "irritability",
+          "racing_thoughts",
+          "smoked",
+          "modafinil",
+          "yoga",
+          "mood_note"
+        ]
+      },
+      "mood": {
+        "metrics": [
+          "energy",
+          "anxiety",
+          "irritability",
+          "racing_thoughts",
+          "mood_note"
+        ]
+      }
+    },
+    "metrics": {
+      "sleep_time": {
+        "type": "time",
+        "question": "Во сколько лёг спать?"
+      },
+      "wake_time": {
+        "type": "time",
+        "question": "Во сколько проснулся?"
+      },
+      "sleep_hours": {
+        "type": "number",
+        "question": "Сон",
+        "unit": "ч.",
+        "min": 0,
+        "max": 24,
+        "button": "💤 Прибавить сон",
+        "computed_from": [
+          "sleep_time",
+          "wake_time"
+        ],
+        "compute": "time_diff_hours"
+      },
+      "productivity_hours": {
+        "type": "number",
+        "question": "Продуктивность (часов)?",
+        "unit": "ч.",
+        "min": 0,
+        "max": 24,
+        "button": "💼 Прибавить продуктивность"
+      },
+      "meditate_minutes": {
+        "type": "number",
+        "question": "Сколько минут медитировал?",
+        "unit": "мин.",
+        "min": 0,
+        "max": 999,
+        "button": "🧘 Прибавить медитацию"
+      },
+      "energy": {
+        "type": "scale",
+        "question": "Уровень энергии?"
+      },
+      "anxiety": {
+        "type": "scale",
+        "question": "Уровень тревоги?"
+      },
+      "irritability": {
+        "type": "scale",
+        "question": "Раздражительность?"
+      },
+      "racing_thoughts": {
+        "type": "scale",
+        "question": "Ускоренные мысли и речь?"
+      },
+      "smoked": {
+        "type": "number",
+        "question": "Сколько косяков выкурил?",
+        "unit": "раз",
+        "min": 0,
+        "max": 20,
+        "button": "➕ Прибавить"
+      },
+      "modafinil": {
+        "type": "yes_no",
+        "question": "Принимал модафинил?",
+        "button": "💊 Модафинил"
+      },
+      "yoga": {
+        "type": "yes_no",
+        "question": "Йога?",
+        "button": "🧘 Йога"
+      },
+      "mood_note": {
+        "type": "note",
+        "question": "Что тебя беспокоит?"
+      }
+    }
+  },
+  "// previous url": ""
+}
