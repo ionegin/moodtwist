@@ -118,10 +118,72 @@ def _read_source_file():
     return None
 
 
+def _extract_drive_file_id(url):
+    """Достаёт file id из ссылки Google Drive или возвращает None."""
+    import re
+    m = re.search(r"(?:/file/d/|\bid=)([\w-]{25,})", url)
+    return m.group(1) if m else None
+
+
+_drive_token_cache = {"token": None, "expires_at": 0.0}
+
+
+def _drive_token():
+    """OAuth-токен сервис-аккаунта (с кэшем до истечения)."""
+    import time as _time
+    from datetime import datetime, timezone
+
+    token = _drive_token_cache["token"]
+    if token and _time.time() < _drive_token_cache["expires_at"] - 60:
+        return token
+
+    from config import CREDENTIALS_FILE
+    from google.auth.transport.requests import Request
+    from google.oauth2 import service_account
+
+    creds = service_account.Credentials.from_service_account_file(
+        CREDENTIALS_FILE,
+        scopes=[
+            "https://www.googleapis.com/auth/spreadsheets",
+            "https://www.googleapis.com/auth/drive.readonly",
+        ],
+    )
+    creds.refresh(Request())
+    expiry = creds.expiry
+    if expiry is None:
+        lifetime = 3600.0
+    elif expiry.tzinfo is None:
+        lifetime = (expiry - datetime.utcnow()).total_seconds()
+    else:
+        lifetime = (expiry - datetime.now(timezone.utc)).total_seconds()
+    if lifetime <= 0:
+        lifetime = 3600.0
+    _drive_token_cache["token"] = creds.token
+    _drive_token_cache["expires_at"] = _time.time() + lifetime
+    return creds.token
+
+
 async def _fetch_url(url):
-    """Скачивает JSON по публичной ссылке."""
+    """Скачивает JSON по ссылке.
+
+    Google Drive ссылки качаются через Drive API от имени сервис-аккаунта,
+    поэтому работает и для приватных файлов, расшаренных на него.
+    """
     import aiohttp
-    timeout = aiohttp.ClientTimeout(total=15)
+    timeout = aiohttp.ClientTimeout(total=20)
+    file_id = _extract_drive_file_id(url)
+    if file_id:
+        headers = {"Authorization": "Bearer " + _drive_token()}
+        download_url = f"https://www.googleapis.com/drive/v3/files/{file_id}?alt=media"
+        async with aiohttp.ClientSession(timeout=timeout) as session:
+            async with session.get(download_url, headers=headers) as resp:
+                if resp.status == 404:
+                    raise PermissionError(
+                        "[SURVEY] Google Drive file недоступен сервис-аккаунту "
+                        "(нет доступа или файл удалён)"
+                    )
+                resp.raise_for_status()
+                return await resp.text()
     async with aiohttp.ClientSession(timeout=timeout) as session:
         async with session.get(url) as resp:
             resp.raise_for_status()

@@ -215,3 +215,4 @@ voice_*.ogg
 temp/
 logs/
 data/
+users.txt
